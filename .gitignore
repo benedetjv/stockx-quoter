@@ -1,0 +1,10 @@
+__pycache__/
+*.spec
+build/
+dist/
+*.pyc
+.env
+state.json
+*.png
+*.ico
+*.log

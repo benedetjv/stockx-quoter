@@ -1,0 +1,38 @@
+# Personal Shopping Quoter 🛍️
+
+## Sobre o Projeto
+Este projeto foi desenvolvido com o propósito específico de **otimizar o fluxo de trabalho de Personal Shopping**. 
+
+Anteriormente, o processo dependia de planilhas complexas do Excel para realizar cotações, seguido de um processo manual para inserir esses valores em templates de mensagem e, posteriormente, a geração manual de links de pagamento. Isso era lento, propenso a erros e pouco escalável.
+
+O **Personal Shopping Quoter** automatiza todo esse funil:
+1.  **Cotação Instantânea**: Calcula o preço final do produto baseado em regras complexas de taxas, shipping e markup (StockX e Outros sites).
+2.  **Automação Glin**: Um bot integrado navega automaticamente na plataforma de pagamentos (Glin), faz o login e gera a simulação de parcelamento (Pix e Cartão).
+3.  **Geração de Link**: Com um clique, o sistema gera o Link de Pagamento final e o copia para a área de transferência.
+4.  **Template Pronto**: A mensagem final já sai formatada com valores, parcelas, termos de uso e o link de pagamento, pronta para ser enviada ao cliente.
+
+O objetivo final é transformar um processo de 5-10 minutos em uma operação de **segundos**, permitindo maior volume de atendimento e profissionalismo.
+
+## Estrutura do Projeto
+
+*   `gui_app.py`: Interface Gráfica (GUI) moderna construída com `customtkinter`. Gerencia a interação com o usuário, seleção de categorias e exibição dos resultados.
+*   `calculator.py`: O "cérebro" matemático. Contém as fórmulas de precificação para StockX (Taxas + Shipping + Markup) e Outros Sites (Markup 15% + Fee Fixa).
+*   `glin_automation.py`: Módulo de automação (RPA) utilizando `Playwright`. É responsável por abrir o navegador em background, logar na Glin e extrair os dados financeiros e o link de pagamento.
+*   `.env`: Arquivo de configuração seguro (não versionado) que armazena as credenciais de acesso.
+
+## Como Usar
+
+1.  Clone o repositório.
+2.  Crie um arquivo `.env` baseado no `.env.example` e insira suas credenciais da Glin.
+3.  Instale as dependências:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  Execute a aplicação:
+    ```bash
+    python gui_app.py
+    ```
+5.  Para gerar o executável (.exe):
+    ```bash
+    pyinstaller StockX_Calculator_BR.spec
+    ```
