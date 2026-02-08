@@ -64,17 +64,17 @@ if 'final_message' not in st.session_state:
 with st.sidebar:
     st.header("1. Configuração")
     
-    source = st.radio("Origem:", ["StockX", "Outros Sites"], horizontal=True)
-    category = st.selectbox("Categoria:", ["Tênis", "Camiseta", "Moletom", "Jaqueta", "Outros (SEM ENVIO)"])
+    source = st.radio("Origem:", ["StockX", "Outros Sites"], horizontal=True, key="source_input")
+    category = st.selectbox("Categoria:", ["Tênis", "Camiseta", "Moletom", "Jaqueta", "Outros (SEM ENVIO)"], key="category_input")
     
     st.divider()
     
     if source == "StockX":
-        price_input = st.number_input("Preço Base ($):", min_value=0.0, format="%.2f", help="Preço do produto na StockX")
+        price_input = st.number_input("Preço Base ($):", min_value=0.0, format="%.2f", help="Preço do produto na StockX", key="price_stockx")
     else:
-        price_input = st.number_input("Preço Site + Shipping ($):", min_value=0.0, format="%.2f")
+        price_input = st.number_input("Preço Site + Shipping ($):", min_value=0.0, format="%.2f", key="price_other")
         
-    size_input = st.text_input("Tamanho:", placeholder="ex: 9.5, L, 42")
+    size_input = st.text_input("Tamanho:", placeholder="ex: 9.5, L, 42", key="size_input")
     
     st.divider()
     
@@ -85,9 +85,18 @@ with st.sidebar:
     with col_btn2:
         # Reset Button
         if st.button("Limpar 🗑️", use_container_width=True):
+            # Clear Results
             st.session_state.quote_data = None
             st.session_state.glin_result = None
             st.session_state.final_message = ""
+            
+            # Clear Inputs (via keys)
+            st.session_state.price_stockx = 0.0
+            st.session_state.price_other = 0.0
+            st.session_state.size_input = ""
+            st.session_state.category_input = "Tênis"
+            # st.session_state.source_input = "StockX" # Opcional: manter a origem selecionada
+            
             st.rerun()
 
 # --- MAIN AREA ---
