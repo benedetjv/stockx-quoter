@@ -138,8 +138,18 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
             input_locator.press("Enter")
             
             # Aguarda a label "Pix" aparecer
-            page.locator("text=Pix").first.wait_for(timeout=5000)
-            
+            try:
+                page.locator("text=Pix").first.wait_for(timeout=20000) # Aumentado para 20s (Cloud é lento)
+            except:
+                log("Timeout aguardando 'Pix'. Tentando reinserir valor...")
+                # Retry Input
+                input_locator.click()
+                input_locator.press("Control+A")
+                input_locator.press("Backspace")
+                input_locator.press_sequentially(f"{usd_amount:.2f}", delay=150)
+                input_locator.press("Enter")
+                page.locator("text=Pix").first.wait_for(timeout=20000)
+
             # Smart Wait: Aguarda o valor do Pix ser calculado (diferente de N/A ou vazio)
             # Loop de verificação rápida (max 3s)
             pix_value = "N/A"
