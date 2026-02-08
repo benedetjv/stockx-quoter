@@ -60,6 +60,18 @@ if 'glin_result' not in st.session_state:
 if 'final_message' not in st.session_state:
     st.session_state.final_message = ""
 
+# Callback function for Reset
+def reset_callback():
+    st.session_state.quote_data = None
+    st.session_state.glin_result = None
+    st.session_state.final_message = ""
+    st.session_state.price_stockx = 0.0
+    # Verifica se a chave existe antes de resetar (safety check)
+    if 'price_other' in st.session_state:
+        st.session_state.price_other = 0.0
+    st.session_state.size_input = ""
+    st.session_state.category_input = "Tênis"
+
 # --- SIDEBAR (INPUTS) ---
 with st.sidebar:
     st.header("1. Configuração")
@@ -83,21 +95,8 @@ with st.sidebar:
         # Calculate Button
         calculate_btn = st.button("Calcular 🧮", use_container_width=True, type="primary")
     with col_btn2:
-        # Reset Button
-        if st.button("Limpar 🗑️", use_container_width=True):
-            # Clear Results
-            st.session_state.quote_data = None
-            st.session_state.glin_result = None
-            st.session_state.final_message = ""
-            
-            # Clear Inputs (via keys)
-            st.session_state.price_stockx = 0.0
-            st.session_state.price_other = 0.0
-            st.session_state.size_input = ""
-            st.session_state.category_input = "Tênis"
-            # st.session_state.source_input = "StockX" # Opcional: manter a origem selecionada
-            
-            st.rerun()
+        # Reset Button (with Callback)
+        st.button("Limpar 🗑️", use_container_width=True, on_click=reset_callback)
 
 # --- MAIN AREA ---
 
