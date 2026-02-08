@@ -36,3 +36,18 @@ O objetivo final é transformar um processo de 5-10 minutos em uma operação de
     ```bash
     pyinstaller StockX_Calculator_BR.spec
     ```
+
+## Como rodar em outro PC (Produção)
+
+Para usar o aplicativo em outro computador sem precisar instalar Python ou Git:
+
+1.  Vá até a pasta `dist` gerada pelo PyInstaller.
+2.  Copie a pasta inteira **`Personal Shopping Quoter`**.
+3.  Cole essa pasta no outro computador (ex: na Área de Trabalho).
+4.  **IMPORTANTE**: Certifique-se de que o arquivo `.env` (com suas senhas) esteja dentro dessa pasta, junto com o executável.
+    *   Se não estiver, crie um arquivo chamado `.env` e coloque seu email e senha da Glin:
+        ```
+        GLIN_EMAIL=seu_email@...
+        GLIN_PASSWORD=sua_senha...
+        ```
+5.  Abra o arquivo `Personal Shopping Quoter.exe`.
