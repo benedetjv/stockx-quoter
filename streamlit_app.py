@@ -65,7 +65,7 @@ with st.sidebar:
     st.header("1. Configuração")
     
     source = st.radio("Origem:", ["StockX", "Outros Sites"], horizontal=True)
-    category = st.selectbox("Categoria:", ["Tênis", "Camiseta", "Moletom", "Jaqueta", "Outros"])
+    category = st.selectbox("Categoria:", ["Tênis", "Camiseta", "Moletom", "Jaqueta", "Outros (SEM ENVIO)"])
     
     st.divider()
     
@@ -78,18 +78,32 @@ with st.sidebar:
     
     st.divider()
     
-    # Calculate Button in Sidebar
-    calculate_btn = st.button("Calcular Cotação 🧮", use_container_width=True, type="primary")
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        # Calculate Button
+        calculate_btn = st.button("Calcular 🧮", use_container_width=True, type="primary")
+    with col_btn2:
+        # Reset Button
+        if st.button("Limpar 🗑️", use_container_width=True):
+            st.session_state.quote_data = None
+            st.session_state.glin_result = None
+            st.session_state.final_message = ""
+            st.rerun()
 
 # --- MAIN AREA ---
 
 # 1. Calculation Logic
 if calculate_btn:
     if price_input > 0:
+        # Map category name for calculator
+        calc_category = category
+        if "Outros" in category:
+            calc_category = "Outros"
+
         if source == "StockX":
-            quote = st.session_state.calculator.calculate(price_input, category)
+            quote = st.session_state.calculator.calculate(price_input, calc_category)
         else:
-            quote = st.session_state.calculator.calculate_other_platform(price_input, category)
+            quote = st.session_state.calculator.calculate_other_platform(price_input, calc_category)
         
         st.session_state.quote_data = quote
         
@@ -139,7 +153,7 @@ if st.session_state.quote_data:
         generate_link = st.checkbox("Gerar Link Pagamento 🔗", value=False)
     
     with col_action:
-        if st.button("Gerar Link Glin & Mensagem 🚀", type="primary", use_container_width=True):
+        if st.button("Gerar mensagem 🚀", type="primary", use_container_width=True):
              if not size_input:
                 st.error("⚠️ Insira o TAMANHO na barra lateral!")
              else:
