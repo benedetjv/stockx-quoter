@@ -145,12 +145,23 @@ if st.session_state.quote_data:
              else:
                 final_price = st.session_state.quote_data['final_quote']
                 
-                with st.spinner(f"Robô trabalhando por você... (${final_price:.2f})"):
+                with st.status("Processando...", expanded=True) as status:
+                    st.write("Iniciando automação...")
+                    log_area = st.empty()
+                    logs = []
+                    
+                    def ui_logger(msg):
+                        logs.append(msg)
+                        # Mostra as últimas 5 linhas de log para não poluir demais
+                        log_area.code("\n".join(logs[-5:]))
+                        print(msg) # Mantém no console do servidor também
+
                     try:
                         # Run Automation
-                        result = get_glin_quote(final_price, generate_link=generate_link)
+                        result = get_glin_quote(final_price, generate_link=generate_link, log_func=ui_logger)
                     
                         if result:
+                            status.update(label="Concluído!", state="complete", expanded=False)
                             st.session_state.glin_result = result
                             
                             # Format Final Message
@@ -162,10 +173,12 @@ if st.session_state.quote_data:
                             st.session_state.final_message = msg
                             st.balloons()
                         else:
-                            st.error("Falha ao obter dados da Glin. Verifique os logs ou tente novamente.")
+                            status.update(label="Falha", state="error", expanded=True)
+                            st.error("Falha ao obter dados. Veja os logs acima para entender o motivo.")
                     except Exception as e:
+                        status.update(label="Erro Crítico", state="error")
                         st.error("Erro na automação:")
-                        st.exception(e) # Mostra o traceback completo na tela
+                        st.exception(e)
 
 # --- FINAL OUTPUT ---
 if st.session_state.glin_result:

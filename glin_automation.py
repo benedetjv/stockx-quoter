@@ -29,8 +29,11 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
         try:
             # Check for Linux/Streamlit Cloud environment
             if sys.platform.startswith("linux"):
-                log("Ambiente Linux detectado (Cloud). Usando Chromium...")
-                browser = p.chromium.launch(headless=True)
+                log("Ambiente Linux detectado (Cloud). Usando Chromium com args sandbox...")
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-dev-shm-usage"]
+                )
             else:
                 # Windows Local: Try Edge first, then Chrome
                 try:
