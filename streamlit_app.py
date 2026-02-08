@@ -3,6 +3,7 @@ import os
 import traceback
 import asyncio
 import sys
+sys.path.append('src') # Adiciona pasta src ao path para importar modulos
 
 # Bugfix for Playwright on Windows + Streamlit (Asyncio Loop Policy)
 if sys.platform.startswith("win"):

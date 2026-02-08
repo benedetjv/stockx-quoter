@@ -21,8 +21,9 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
             print(msg)
 
     with sync_playwright() as p:
-        # Arquivo de estado de autenticação do usuário
-        auth_file = 'state.json'
+        # Arquivo de estado de autenticação do usuário (no mesmo diretório do script)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        auth_file = os.path.join(current_dir, 'state.json')
         
         # Browser Launch Logic (Cloud vs Local)
         browser = None
