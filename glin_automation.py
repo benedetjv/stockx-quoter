@@ -105,41 +105,43 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
             except:
                 pass
 
-            # Insere Valor
+            # Insere Valor com Verificação Robusta
             log(f"Cotando para ${usd_amount:.2f}...")
             
             input_locator = page.locator("input.pl-14, input[placeholder='0.00']").first
             input_locator.wait_for()
             
-            # Limpar e Digitar - Estratégia Híbrida Inteligente
-            input_locator.click()
-            
-            # 1. Tenta FILL (Instantâneo) + Disparo de Eventos
             val_str = f"{usd_amount:.2f}"
-            input_locator.fill(val_str)
-            # Força eventos JS para acordar o framework (React/Vue/etc)
-            input_locator.evaluate("el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }")
             
-            input_locator.press("Enter")
+            # Loop de Tentativa de Input (Max 3 tentativas)
+            for attempt in range(3):
+                # 1. Limpa
+                input_locator.click()
+                input_locator.press("Control+A")
+                input_locator.press("Backspace")
+                time.sleep(0.2)
+                
+                # 2. Digita (Usa sequencial para garantir)
+                # Cloud as vezes falha com fill rápido
+                input_locator.press_sequentially(val_str, delay=100)
+                time.sleep(0.5)
+                
+                # 3. Verifica se escreveu certo
+                actual_value = input_locator.input_value()
+                if val_str in actual_value:
+                    input_locator.press("Enter")
+                    break # Sucesso
+                else:
+                    log(f"Input falhou (Tentativa {attempt+1}): Esperado '{val_str}', Atual '{actual_value}'. Tentando novamente...")
             
-            # Verificação imediata: Se o valor no input não bateu, tenta digitar lento
-            # (As vezes o fill funciona visualmente mas o estado interno não atualiza)
-            actual_value = input_locator.input_value()
-            if val_str not in actual_value:
-                 log(f"Fill falhou (Valor atual: {actual_value}). Tentando digitação lenta...")
-                 input_locator.click()
-                 input_locator.press("Control+A")
-                 input_locator.press("Backspace")
-                 input_locator.press_sequentially(val_str, delay=50) # 50ms é rápido o suficiente
-                 input_locator.press("Enter")
-
-            # Aguarda a label "Pix" aparecer (Max 10s)
+            # Aguarda a label "Pix" aparecer (Max 15s)
             try:
-                page.locator("text=Pix").first.wait_for(timeout=10000)
+                page.locator("text=Pix").first.wait_for(timeout=15000)
             except:
-                 # Se der timeout, pode ser que o clique falhou, tenta enter de novo
+                 log("Timeout final aguardando Pix. Tentando Enter de novo...")
                  input_locator.press("Enter")
-                 page.locator("text=Pix").first.wait_for(timeout=5000)
+                 # Tenta última chance
+                 page.locator("text=Pix").first.wait_for(timeout=10000)
 
             # Remoção do sleep(2.0) fixo. 
             # O loop abaixo já espera dinamicamente.
