@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import re
 from playwright.sync_api import sync_playwright
@@ -23,21 +24,25 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
         # Arquivo de estado de autenticação do usuário
         auth_file = 'state.json'
         
-        # Usa msedge (padrão Windows) para melhorar confiabilidade no EXE
+        # Browser Launch Logic (Cloud vs Local)
         browser = None
         try:
-             log("Tentando abrir Microsoft Edge...")
-             browser = p.chromium.launch(headless=True, channel="msedge")
-        except Exception as e_edge:
-             # Fallback para chrome se edge falhar
-             log(f"Edge não encontrado. Tentando Google Chrome...")
-             try:
-                 browser = p.chromium.launch(headless=True, channel="chrome")
-             except Exception as e_chrome:
-                 log(f"Erro crítico: Nenhum navegador (Edge/Chrome) encontrado.")
-                 log(f"Detalhes Edge: {e_edge}")
-                 log(f"Detalhes Chrome: {e_chrome}")
-                 return None
+            # Check for Linux/Streamlit Cloud environment
+            if sys.platform.startswith("linux"):
+                log("Ambiente Linux detectado (Cloud). Usando Chromium...")
+                browser = p.chromium.launch(headless=True)
+            else:
+                # Windows Local: Try Edge first, then Chrome
+                try:
+                    log("Windows detectado. Tentando abrir Microsoft Edge...")
+                    browser = p.chromium.launch(headless=True, channel="msedge")
+                except Exception as e_edge:
+                     # Fallback para chrome se edge falhar
+                     log(f"Edge não encontrado. Tentando Google Chrome...")
+                     browser = p.chromium.launch(headless=True, channel="chrome")
+        except Exception as e_launch:
+             log(f"Erro crítico ao lançar navegador: {e_launch}")
+             return None
 
         if not browser:
              return None
@@ -90,17 +95,17 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
                 # Seletor genérico para botões dentro de divs com classes de cookie/adopt
                 cookie_btn = page.locator("button:has-text('Aceitar'), button:has-text('Concordo'), button:has-text('Allow'), button:has-text('Prosseguir')").first
                 
-                if cookie_btn.is_visible(timeout=5000):
+                if cookie_btn.is_visible(timeout=2000): # Reduzido timeout
                     log("Banner de cookies detectado. Clicando em aceitar...")
                     cookie_btn.click()
-                    time.sleep(1) # Aguarda animação
+                    time.sleep(0.5) # Aguarda animação (Reduzido)
                 else:
                     # Tenta seletor específico da AdOpt se o genérico falhar
                     adopt_btn = page.locator("[class*='adopt-'] button").first
-                    if adopt_btn.is_visible(timeout=2000):
+                    if adopt_btn.is_visible(timeout=1000): # Reduzido timeout
                          log("Banner AdOpt detectado. Clicando...")
                          adopt_btn.click()
-                         time.sleep(1)
+                         time.sleep(0.5) # Reduzido
             except Exception as e_cookie:
                 log(f"Aviso: Falha ao lidar com cookies (não crítico): {e_cookie}")
 
@@ -111,39 +116,41 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
             input_locator = page.locator("input.pl-14, input[placeholder='0.00']").first
             input_locator.wait_for()
             
-            # Limpar e Digitar - Mais Robusto para evitar bugs de máscara
+            # Limpar e Digitar - Otimizado com Eventos JS (Híbrido)
             input_locator.click()
-            time.sleep(0.5)
-            # ... (rest of input logic is fine)
-            input_locator.press("Control+A")
-            input_locator.press("Backspace")
-            # Limpeza extra só para garantir
-            input_locator.press("Delete")
             
-            time.sleep(0.5) # Aguarda a lógica da máscara assentar
-            
-            # Digita mais devagar para garantir que nenhum dígito seja pulado
-            input_locator.press_sequentially(f"{usd_amount:.2f}", delay=200)
-            time.sleep(0.5)
+            # Tenta fill (instantâneo)
+            val_str = f"{usd_amount:.2f}"
+            try:
+                input_locator.fill(val_str)
+                # Força eventos para garantir que o site detecte a mudança (React/Vue/Ang often need this)
+                input_locator.evaluate("el => el.dispatchEvent(new Event('input', { bubbles: true }))")
+                input_locator.evaluate("el => el.dispatchEvent(new Event('change', { bubbles: true }))")
+            except:
+                # Fallback se fill falhar
+                input_locator.press("Control+A")
+                input_locator.press("Backspace")
+                input_locator.press_sequentially(val_str, delay=50)
+
             input_locator.press("Enter")
             
-            # Aguarda atualização do Pix (espera genérica por texto "Pix" e "R$")
-            page.locator("text=Pix").first.wait_for(timeout=10000)
-            # Dá um momento para os valores assentarem
-            time.sleep(2)
+            # Aguarda a label "Pix" aparecer
+            page.locator("text=Pix").first.wait_for(timeout=5000)
             
-            # Extrai Valor do Pix diretamente do texto da página para ser seguro
-            # Procura por padrão "Pix" seguido por "R$ X.XXX,XX"
-            content_text = page.locator("body").inner_text()
-            # Regex para capturar valor R$ após Pix
-            # Matches: Pix ... R$ 1.576,92
-            pix_match = re.search(r'Pix.*?R\$\s*([\d\.,]+)', content_text, re.IGNORECASE | re.DOTALL)
-            
-            if pix_match:
-                 pix_value = f"R$ {pix_match.group(1)}"
-            else:
-                 # Fallback
-                 pix_value = "N/A"
+            # Smart Wait: Aguarda o valor do Pix ser calculado (diferente de N/A ou vazio)
+            # Loop de verificação rápida (max 3s)
+            pix_value = "N/A"
+            for _ in range(15): # 15 * 0.2s = 3s max
+                content_text = page.locator("body").inner_text()
+                # Regex procura por R$ seguido de números (excluindo 0,00 se possível, mas o regex pega qualquer digito)
+                match = re.search(r'Pix.*?R\$\s*([\d\.,]+)', content_text, re.IGNORECASE | re.DOTALL)
+                if match:
+                    raw_val = match.group(1)
+                    # Verifica se não é "0,00" ou vazio
+                    if raw_val.strip() != "0,00" and any(c.isdigit() for c in raw_val):
+                        pix_value = f"R$ {raw_val}"
+                        break
+                time.sleep(0.2)
             
             # Abre Parcelamento via JS (Maneira mais robusta)
             log("Buscando parcelamento...")

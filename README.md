@@ -50,4 +50,40 @@ Para usar o aplicativo em outro computador sem precisar instalar Python ou Git:
         GLIN_EMAIL=seu_email@...
         GLIN_PASSWORD=sua_senha...
         ```
+        ```
 5.  Abra o arquivo `Personal Shopping Quoter.exe`.
+
+---
+
+## Versão Web (Streamlit) 🌐
+
+Se preferir usar via navegador (estilo site):
+
+1.  Certifique-se de ter instalado as dependências:
+    ```bash
+    pip install streamlit
+    ```
+2.  Rode o comando:
+    ```bash
+    streamlit run streamlit_app.py
+    ```
+3.  O navegador abrirá automaticamente com a interface web. A automação rodará no servidor (seu PC) e o resultado aparecerá na tela.
+
+---
+
+## Deploy no Streamlit Cloud ☁️
+
+Para colocar este app online (acessível de qualquer lugar):
+
+1.  Suba este código para o **GitHub**.
+2.  Crie uma conta no [Streamlit Cloud](https://share.streamlit.io/).
+3.  Conecte seu GitHub e selecione este repositório.
+4.  **IMPORTANTE (Configuração de Senhas):**
+    *   O arquivo `.env` **NÃO** vai para o GitHub por segurança.
+    *   No painel do Streamlit, vá em **App Settings** -> **Secrets**.
+    *   Cole o conteúdo do seu `.env` lá, assim:
+        ```toml
+        GLIN_EMAIL = "seu_email@..."
+        GLIN_PASSWORD = "sua_senha..."
+        ```
+5.  Clique em **Deploy**! O Streamlit vai instalar tudo (incluindo o navegador) e rodar.
