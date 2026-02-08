@@ -91,64 +91,60 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
                 context.storage_state(path=auth_file)
                 log("Sessão salva.")
 
-            # Lida com Banner de Cookies (AdOpt) de forma robusta
+            # Lida com Banner de Cookies (AdOpt) de forma acelerada
             log("Verificando banner de cookies...")
             try:
-                # Tenta aceitar via botão, procurando por textos comuns
-                # Seletor genérico para botões dentro de divs com classes de cookie/adopt
+                # Timeout curto (1s) para não travar se não tiver banner
                 cookie_btn = page.locator("button:has-text('Aceitar'), button:has-text('Concordo'), button:has-text('Allow'), button:has-text('Prosseguir')").first
-                
-                if cookie_btn.is_visible(timeout=2000): # Reduzido timeout
-                    log("Banner de cookies detectado. Clicando em aceitar...")
+                if cookie_btn.is_visible(timeout=1000):
                     cookie_btn.click()
-                    time.sleep(0.5) # Aguarda animação (Reduzido)
                 else:
-                    # Tenta seletor específico da AdOpt se o genérico falhar
                     adopt_btn = page.locator("[class*='adopt-'] button").first
-                    if adopt_btn.is_visible(timeout=1000): # Reduzido timeout
-                         log("Banner AdOpt detectado. Clicando...")
+                    if adopt_btn.is_visible(timeout=500):
                          adopt_btn.click()
-                         time.sleep(0.5) # Reduzido
-            except Exception as e_cookie:
-                log(f"Aviso: Falha ao lidar com cookies (não crítico): {e_cookie}")
+            except:
+                pass
 
             # Insere Valor
             log(f"Cotando para ${usd_amount:.2f}...")
             
-            # Seletor robusto para o input de valor
             input_locator = page.locator("input.pl-14, input[placeholder='0.00']").first
             input_locator.wait_for()
             
-            # Limpar e Digitar - Otimizado com Eventos JS (Híbrido)
+            # Limpar e Digitar - Estratégia Híbrida Inteligente
             input_locator.click()
             
-            # Tenta fill (instantâneo)
+            # 1. Tenta FILL (Instantâneo) + Disparo de Eventos
             val_str = f"{usd_amount:.2f}"
-            try:
-                input_locator.fill(val_str)
-                # Força eventos para garantir que o site detecte a mudança (React/Vue/Ang often need this)
-                input_locator.evaluate("el => el.dispatchEvent(new Event('input', { bubbles: true }))")
-                input_locator.evaluate("el => el.dispatchEvent(new Event('change', { bubbles: true }))")
-            except:
-                # Fallback se fill falhar
-                input_locator.press("Control+A")
-                input_locator.press("Backspace")
-                input_locator.press_sequentially(val_str, delay=50)
-
+            input_locator.fill(val_str)
+            # Força eventos JS para acordar o framework (React/Vue/etc)
+            input_locator.evaluate("el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }")
+            
             input_locator.press("Enter")
             
-            # Aguarda a label "Pix" aparecer
+            # Verificação imediata: Se o valor no input não bateu, tenta digitar lento
+            # (As vezes o fill funciona visualmente mas o estado interno não atualiza)
+            actual_value = input_locator.input_value()
+            if val_str not in actual_value:
+                 log(f"Fill falhou (Valor atual: {actual_value}). Tentando digitação lenta...")
+                 input_locator.click()
+                 input_locator.press("Control+A")
+                 input_locator.press("Backspace")
+                 input_locator.press_sequentially(val_str, delay=50) # 50ms é rápido o suficiente
+                 input_locator.press("Enter")
+
+            # Aguarda a label "Pix" aparecer (Max 10s)
             try:
-                page.locator("text=Pix").first.wait_for(timeout=20000) # Aumentado para 20s (Cloud é lento)
+                page.locator("text=Pix").first.wait_for(timeout=10000)
             except:
-                log("Timeout aguardando 'Pix'. Tentando reinserir valor...")
-                # Retry Input
-                input_locator.click()
-                input_locator.press("Control+A")
-                input_locator.press("Backspace")
-                input_locator.press_sequentially(f"{usd_amount:.2f}", delay=150)
-                input_locator.press("Enter")
-                page.locator("text=Pix").first.wait_for(timeout=20000)
+                 # Se der timeout, pode ser que o clique falhou, tenta enter de novo
+                 input_locator.press("Enter")
+                 page.locator("text=Pix").first.wait_for(timeout=5000)
+
+            # Remoção do sleep(2.0) fixo. 
+            # O loop abaixo já espera dinamicamente.
+            
+            # Smart Wait: Aguarda o valor do Pix ser calculado
 
             # Smart Wait: Aguarda o valor do Pix ser calculado (diferente de N/A ou vazio)
             # Loop de verificação rápida (max 3s)
