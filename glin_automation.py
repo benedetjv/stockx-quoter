@@ -108,6 +108,12 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
             # Insere Valor com Verificação Robusta
             log(f"Cotando para ${usd_amount:.2f}...")
             
+            # Aguarda a rede acalmar para garantir que os listeners do React/Vue estão ativos
+            try:
+                page.wait_for_load_state("networkidle", timeout=3000)
+            except:
+                pass
+
             input_locator = page.locator("input.pl-14, input[placeholder='0.00']").first
             input_locator.wait_for()
             
@@ -119,29 +125,33 @@ def get_glin_quote(usd_amount, generate_link=False, log_func=None):
                 input_locator.click()
                 input_locator.press("Control+A")
                 input_locator.press("Backspace")
-                time.sleep(0.2)
-                
-                # 2. Digita (Usa sequencial para garantir)
-                # Cloud as vezes falha com fill rápido
-                input_locator.press_sequentially(val_str, delay=100)
                 time.sleep(0.5)
                 
-                # 3. Verifica se escreveu certo
+                # 2. Digita (MUITO LENTO - Cloud precisa de tempo)
+                # Headless as vezes é rápido demais para o JS da página
+                input_locator.press_sequentially(val_str, delay=200)
+                time.sleep(1.0)
+                
+                # 3. Blur (Clica fora ou Tab) para disparar eventos de change
+                input_locator.press("Tab") 
+                page.locator("body").click() # Clica no fundo por garantia
+                time.sleep(0.5)
+
+                # 4. Verifica se escreveu certo
                 actual_value = input_locator.input_value()
                 if val_str in actual_value:
+                    # Agora tenta disparar o cálculo
                     input_locator.press("Enter")
                     break # Sucesso
                 else:
                     log(f"Input falhou (Tentativa {attempt+1}): Esperado '{val_str}', Atual '{actual_value}'. Tentando novamente...")
             
-            # Aguarda a label "Pix" aparecer (Max 15s)
+            # Aguarda a label "Pix" aparecer (Max 20s)
             try:
-                page.locator("text=Pix").first.wait_for(timeout=15000)
+                page.locator("text=Pix").first.wait_for(timeout=20000)
             except:
-                 log("Timeout final aguardando Pix. Tentando Enter de novo...")
-                 input_locator.press("Enter")
-                 # Tenta última chance
-                 page.locator("text=Pix").first.wait_for(timeout=10000)
+                 log(f"Timeout aguardando Pix. Conteúdo da página:\n{page.locator('body').inner_text()[:200]}")
+                 raise Exception("Não foi possível obter a cotação (Timeout do Pix).")
 
             # Remoção do sleep(2.0) fixo. 
             # O loop abaixo já espera dinamicamente.
