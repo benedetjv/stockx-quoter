@@ -1,0 +1,12 @@
+chromium
+libnss3
+libnss3-dev
+libasound2t64
+libatk1.0-0
+libatk-bridge2.0-0
+libgdk-pixbuf-2.0-0
+libgtk-3-0
+libgbm-dev
+libxss1
+fonts-liberation
+xdg-utils
