@@ -95,6 +95,18 @@ def _build_session(cookies: dict) -> requests.Session:
 # Login via Playwright (somente quando necessário)
 # ──────────────────────────────────────────────
 
+def _check_server_errors(page, log) -> bool:
+    try:
+        content = page.content()
+        for err in ["504 Gateway Time-out", "504 Gateway Timeout", "502 Bad Gateway", "503 Service Unavailable", "500 Internal Server Error"]:
+            if err in content:
+                log(f"Detectado erro no servidor da Glin: '{err}'. O serviço deles parece estar fora do ar ou instável no momento. Tente novamente mais tarde.")
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def _playwright_login(log):
     """
     Realiza login no Glin via Playwright e salva o state.json
@@ -180,7 +192,10 @@ def _playwright_login(log):
                 try:
                     page.wait_for_url("**/merchant/dashboard/charge", timeout=60000)
                 except Exception as e:
-                    log(f"Timeout aguardando dashboard: {page.url}")
+                    if _check_server_errors(page, log):
+                        pass
+                    else:
+                        log(f"Timeout aguardando dashboard: {page.url}")
                     try:
                         page.screenshot(path="login_error.png")
                         log("Screenshot de erro salvo como login_error.png")
@@ -199,7 +214,8 @@ def _playwright_login(log):
             return cookies
 
         except Exception as e:
-            log(f"Erro durante login: {e}")
+            if not _check_server_errors(page, log):
+                log(f"Erro durante login: {e}")
             try:
                 page.screenshot(path="login_error.png")
                 log("Screenshot de erro salvo em login_error.png")
