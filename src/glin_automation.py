@@ -115,6 +115,13 @@ def _playwright_login(log):
 
     log("Sessão expirada. Fazendo login via navegador (uma só vez)...")
 
+    # Remove previous error screenshot if any
+    try:
+        if os.path.exists("login_error.png"):
+            os.remove("login_error.png")
+    except Exception:
+        pass
+
     with sync_playwright() as p:
         state_file = _get_state_file()
 
@@ -136,7 +143,9 @@ def _playwright_login(log):
             return {}
 
         context = browser.new_context(
-            storage_state=state_file if os.path.exists(state_file) else None
+            storage_state=state_file if os.path.exists(state_file) else None,
+            viewport={"width": 1280, "height": 720},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
 
@@ -146,18 +155,37 @@ def _playwright_login(log):
             if "login" in page.url:
                 log("Preenchendo credenciais...")
                 try:
-                    page.wait_for_load_state("networkidle", timeout=10000)
+                    page.wait_for_load_state("networkidle", timeout=15000)
                 except Exception:
                     pass
 
-                page.get_by_placeholder("Endereço de email*").first.fill(email)
-                page.get_by_placeholder("Senha*").first.fill(password)
-                page.get_by_role("button", name="Continuar").first.click()
+                # Resilient email selector
+                try:
+                    page.locator("#email").fill(email)
+                except Exception:
+                    page.get_by_placeholder("Endereço de email*").first.fill(email)
+
+                # Resilient password selector
+                try:
+                    page.locator("#password").fill(password)
+                except Exception:
+                    page.get_by_placeholder("Senha*").first.fill(password)
+
+                # Resilient submit button
+                try:
+                    page.locator("#submit-btn").click()
+                except Exception:
+                    page.get_by_role("button", name="Continuar").first.click()
 
                 try:
                     page.wait_for_url("**/merchant/dashboard/charge", timeout=60000)
                 except Exception as e:
                     log(f"Timeout aguardando dashboard: {page.url}")
+                    try:
+                        page.screenshot(path="login_error.png")
+                        log("Screenshot de erro salvo como login_error.png")
+                    except Exception as se:
+                        log(f"Erro ao tirar screenshot: {se}")
                     raise e
 
             # Salva estado
@@ -172,6 +200,11 @@ def _playwright_login(log):
 
         except Exception as e:
             log(f"Erro durante login: {e}")
+            try:
+                page.screenshot(path="login_error.png")
+                log("Screenshot de erro salvo em login_error.png")
+            except Exception as se:
+                log(f"Não foi possível salvar o screenshot de erro: {se}")
             return {}
         finally:
             browser.close()
@@ -187,7 +220,7 @@ def _validate_session(session: requests.Session, log) -> str | None:
     Retorna o slug do merchant em caso de sucesso, ou None se inválida.
     """
     try:
-        resp = session.get(f"{BASE_URL}/api/user", timeout=15)
+        resp = session.get(f"{BASE_URL}/api/user", timeout=30)
         if resp.status_code == 200:
             data = resp.json()
             merchants = data.get("merchants", [])
@@ -212,7 +245,7 @@ def _fetch_payment_terms(session: requests.Session, slug: str, usd_amount: float
     url = f"{BASE_URL}/app/merchants/{slug}/payment-terms/USD{usd_amount:.2f}"
     log(f"Consultando termos de pagamento: USD {usd_amount:.2f}...")
     try:
-        resp = session.get(url, timeout=15)
+        resp = session.get(url, timeout=30)
         if resp.status_code == 200:
             return resp.json().get("paymentTerms", resp.json())
         log(f"Erro ao buscar payment-terms (status {resp.status_code}): {resp.text[:200]}")
@@ -235,7 +268,7 @@ def _create_payment_link(session: requests.Session, slug: str, usd_amount: float
     }
     log("Gerando link de pagamento...")
     try:
-        resp = session.post(url, json=payload, timeout=15)
+        resp = session.post(url, json=payload, timeout=30)
         if resp.status_code in (200, 201):
             data = resp.json()
             link_id = data.get("id")

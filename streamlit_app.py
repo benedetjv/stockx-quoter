@@ -196,10 +196,14 @@ if st.session_state.quote_data:
                         else:
                             status.update(label="Falha", state="error", expanded=True)
                             st.error("Falha ao obter dados. Veja os logs acima para entender o motivo.")
+                            if os.path.exists("login_error.png"):
+                                st.image("login_error.png", caption="Captura de tela do erro de login")
                     except Exception as e:
                         status.update(label="Erro Crítico", state="error")
                         st.error("Erro na automação:")
                         st.exception(e)
+                        if os.path.exists("login_error.png"):
+                            st.image("login_error.png", caption="Captura de tela do erro de login")
 
 # --- FINAL OUTPUT ---
 if st.session_state.glin_result:
