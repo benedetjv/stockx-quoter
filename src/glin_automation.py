@@ -203,6 +203,23 @@ def _playwright_login(log):
                         log(f"Erro ao tirar screenshot: {se}")
                     raise e
 
+            # A troca de URL para o dashboard é uma navegação client-side (SPA):
+            # o app ainda pode estar buscando o usuário/merchant e gravando
+            # cookies/tokens adicionais quando a URL já mudou. Se capturarmos
+            # o storage_state nesse momento, a sessão salva fica "válida" (login
+            # ok) porém incompleta, e /api/user retorna sem merchants depois.
+            # Por isso esperamos a rede estabilizar e um elemento real do
+            # dashboard aparecer antes de persistir o estado.
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+            try:
+                page.wait_for_selector("text=Cobrar clientes", timeout=15000)
+            except Exception:
+                pass
+            page.wait_for_timeout(1500)
+
             # Salva estado
             context.storage_state(path=state_file)
             log("Login realizado e sessão salva com sucesso.")
@@ -239,12 +256,17 @@ def _validate_session(session: requests.Session, log) -> str | None:
         resp = session.get(f"{BASE_URL}/api/user", timeout=30)
         if resp.status_code == 200:
             data = resp.json()
-            merchants = data.get("merchants", [])
+            if not data.get("authenticated"):
+                log("Sessão não autenticada (authenticated=false).")
+                return None
+            user = data.get("user") or {}
+            merchants = user.get("merchants", [])
             if merchants:
                 slug = merchants[0].get("slug")
                 log(f"Sessão válida. Merchant: {slug}")
                 return slug
             log("Sessão válida mas sem merchants encontrados.")
+            log(f"Resposta bruta de /api/user (debug): {json.dumps(data)[:500]}")
             return None
         log(f"Sessão inválida (status {resp.status_code}).")
         return None
@@ -405,6 +427,13 @@ def get_glin_quote(usd_amount: float, generate_link: bool = False, log_func=None
             return None
         session = _build_session(cookies)
         slug = _validate_session(session, log)
+        if not slug:
+            # Fallback: a lista de merchants pode demorar alguns segundos para
+            # ficar disponível no servidor logo após o login. Tenta mais uma
+            # vez antes de desistir.
+            log("Sem merchants na primeira checagem. Aguardando e tentando novamente...")
+            time.sleep(3)
+            slug = _validate_session(session, log)
         if not slug:
             log("Sessão inválida mesmo após login. Abortando.")
             return None
