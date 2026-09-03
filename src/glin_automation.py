@@ -171,19 +171,30 @@ def _playwright_login(log):
                 except Exception:
                     pass
 
+                # Login em duas etapas: primeiro só o e-mail é exibido; ao
+                # clicar em "Continuar" o campo de senha aparece na mesma tela.
+
                 # Resilient email selector
                 try:
                     page.locator("#email").fill(email)
                 except Exception:
                     page.get_by_placeholder("Endereço de email*").first.fill(email)
 
-                # Resilient password selector
+                # Etapa 1: confirma o e-mail para revelar o campo de senha
                 try:
+                    page.locator("#submit-btn").click()
+                except Exception:
+                    page.get_by_role("button", name="Continuar").first.click()
+
+                # Resilient password selector (só existe após avançar a etapa 1)
+                try:
+                    page.locator("#password").wait_for(state="visible", timeout=15000)
                     page.locator("#password").fill(password)
                 except Exception:
+                    page.get_by_placeholder("Senha*").first.wait_for(state="visible", timeout=15000)
                     page.get_by_placeholder("Senha*").first.fill(password)
 
-                # Resilient submit button
+                # Etapa 2: envia a senha
                 try:
                     page.locator("#submit-btn").click()
                 except Exception:
